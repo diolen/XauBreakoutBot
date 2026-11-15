@@ -14,6 +14,7 @@
     <Compile Include="..\XauBreakoutBot\SupportResistance\AtrCalculator.cs" Link="SupportResistance\AtrCalculator.cs" />
     <Compile Include="..\XauBreakoutBot\SupportResistance\SwingDetector.cs" Link="SupportResistance\SwingDetector.cs" />
     <Compile Include="..\XauBreakoutBot\SupportResistance\SupportResistanceEngine.cs" Link="SupportResistance\SupportResistanceEngine.cs" />
+    <Compile Include="..\XauBreakoutBot\SupportResistance\T3BreakoutSignal.cs" Link="SupportResistance\T3BreakoutSignal.cs" />
     <Compile Include="..\XauBreakoutBot\SupportResistance\EntryCandidateSelector.cs" Link="SupportResistance\EntryCandidateSelector.cs" />
     <Compile Include="..\XauBreakoutBot\SupportResistance\TradingViewLevelSelector.cs" Link="SupportResistance\TradingViewLevelSelector.cs" />
   </ItemGroup>

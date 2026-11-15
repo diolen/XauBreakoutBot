@@ -39,7 +39,9 @@ No se infiere T=3 retrospectivo desde el estado actual: hace falta el cruce caus
 
 ## Limitaciones
 
-1. Señales ≠ órdenes; sin SL/TP/volumen.
+1. Señales ≠ órdenes. El plan de riesgo MVP (`RiskPlan`, v1.6) calcula SL/TP/volumen sin ejecutar.
 2. Replay OHLC no reproduce invalidaciones tick intradía.
 3. Merge no transfiere elegibilidad.
 4. Parámetros fijos (K=3, ATR=14, buffer 0.10, ventana 8); no optimizados.
+
+Ver también: [risk-management-mvp.md](../strategy/risk-management-mvp.md).

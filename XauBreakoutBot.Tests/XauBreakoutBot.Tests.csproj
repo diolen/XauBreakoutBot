@@ -28,5 +28,12 @@
     <Compile Include="..\XauBreakoutBot\SupportResistance\ChartVisibleLabelAnchor.cs" Link="SupportResistance\ChartVisibleLabelAnchor.cs" />
     <Compile Include="..\XauBreakoutBot\SupportResistance\T3BreakoutSignal.cs" Link="SupportResistance\T3BreakoutSignal.cs" />
     <Compile Include="..\XauBreakoutBot\SupportResistance\T3BreakoutSignalDetector.cs" Link="SupportResistance\T3BreakoutSignalDetector.cs" />
+    <Compile Include="..\XauBreakoutBot\Risk\RiskParameters.cs" Link="Risk\RiskParameters.cs" />
+    <Compile Include="..\XauBreakoutBot\Risk\RiskRejectionReasons.cs" Link="Risk\RiskRejectionReasons.cs" />
+    <Compile Include="..\XauBreakoutBot\Risk\RiskPlan.cs" Link="Risk\RiskPlan.cs" />
+    <Compile Include="..\XauBreakoutBot\Risk\ISymbolRiskApi.cs" Link="Risk\ISymbolRiskApi.cs" />
+    <Compile Include="..\XauBreakoutBot\Risk\PipValueSymbolRiskApi.cs" Link="Risk\PipValueSymbolRiskApi.cs" />
+    <Compile Include="..\XauBreakoutBot\Risk\BotPositionGate.cs" Link="Risk\BotPositionGate.cs" />
+    <Compile Include="..\XauBreakoutBot\Risk\RiskPlanCalculator.cs" Link="Risk\RiskPlanCalculator.cs" />
   </ItemGroup>
 </Project>

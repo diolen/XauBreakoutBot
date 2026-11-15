@@ -584,7 +584,9 @@ Capa visual independiente (§12.2), aplicable sobre Trading View o Full Debug:
 | Modo visual Trading View | **Implementado** (filtrado visual + toques opcionales; motor intacto) |
 | Candidatos de entrada T=2 | **Implementados** (capa independiente; sin timing de entrada ni ruptura) |
 | Etiquetas visibles M15/H1 | **Corregido** — anclaje a barras visibles del Chart; cálculo sigue en M15 |
-| Señales de entrada / órdenes | **No autorizadas / no implementadas** |
+| Señales T3 breakout | **Implementadas** (v1.5; sin órdenes) |
+| RiskPlan SL/TP/volumen | **Implementado MVP** (v1.6; sin órdenes) — ver `risk-management-mvp.md` |
+| Ejecución de órdenes | **No autorizada / no implementada** |
 | Commit / push | No realizados por la tarea de implementación |
 
 ## 20. Mapa de código (implementación)
@@ -602,7 +604,10 @@ Capa visual independiente (§12.2), aplicable sobre Trading View o Full Debug:
 | Anclaje etiquetas viewport | `XauBreakoutBot/SupportResistance/ChartVisibleLabelAnchor.cs` |
 | Visualización | `XauBreakoutBot/SupportResistance/LevelChartVisualizer.cs` |
 | cBot host | `XauBreakoutBot/XauBreakoutBot.cs` |
+| Risk MVP | `XauBreakoutBot/Risk/*` |
+| Doc Risk MVP | `docs/strategy/risk-management-mvp.md` |
 | Pruebas unitarias | `XauBreakoutBot.Tests/SupportResistanceEngineTests.cs` |
+| Pruebas Risk | `XauBreakoutBot.Tests/RiskPlanCalculatorTests.cs` |
 | Pruebas selector visual | `XauBreakoutBot.Tests/TradingViewLevelSelectorTests.cs` |
 | Pruebas marcadores toque | `XauBreakoutBot.Tests/TradingViewTouchMarkersTests.cs` |
 | Pruebas candidatos entrada | `XauBreakoutBot.Tests/EntryCandidateSelectorTests.cs` |

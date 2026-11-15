@@ -1,21 +1,46 @@
+using cAlgo.Robots.Risk;
 using cAlgo.Robots.SupportResistance;
 
 namespace cAlgo.Robots;
 
 /// <summary>
-/// cBot XAUUSD — módulo de detección de soportes/resistencias M15.
-/// Sin lógica de entrada ni ejecución de órdenes.
+/// cBot XAUUSD — detección S/R M15 + señales T3 + plan de riesgo MVP.
+/// Calcula SL/TP/volumen; no ejecuta órdenes.
 /// </summary>
 [Robot(TimeZone = TimeZones.UTC, AccessRights = AccessRights.None)]
 public partial class XauBreakoutBot : Robot
 {
-    private const string ModuleVersion = "1.5-t3-breakout-signal";
+    private const string ModuleVersion = "1.6-risk-mvp";
 
     [Parameter("Enable T3 Breakout Signals", DefaultValue = true, Group = "Signals")]
     public bool EnableT3BreakoutSignals { get; set; }
 
     [Parameter("Log Replay T3 Signals", DefaultValue = false, Group = "Signals")]
     public bool LogReplayT3Signals { get; set; }
+
+    [Parameter("Enable Risk Plans", DefaultValue = true, Group = "Risk")]
+    public bool EnableRiskPlans { get; set; }
+
+    [Parameter("Log Risk Plans", DefaultValue = true, Group = "Risk")]
+    public bool LogRiskPlans { get; set; }
+
+    [Parameter("Log Replay Risk Plans", DefaultValue = false, Group = "Risk")]
+    public bool LogReplayRiskPlans { get; set; }
+
+    [Parameter("Risk Percent", DefaultValue = RiskParameters.DefaultRiskPercent, Group = "Risk")]
+    public double RiskPercent { get; set; }
+
+    [Parameter("Stop Buffer ATR", DefaultValue = RiskParameters.DefaultStopBufferAtr, Group = "Risk")]
+    public double StopBufferAtr { get; set; }
+
+    [Parameter("Reward Risk Ratio", DefaultValue = RiskParameters.DefaultRewardRiskRatio, Group = "Risk")]
+    public double RewardRiskRatio { get; set; }
+
+    [Parameter("Max Open Positions", DefaultValue = RiskParameters.DefaultMaxOpenPositions, Group = "Risk")]
+    public int MaxOpenPositions { get; set; }
+
+    [Parameter("Bot Position Label", DefaultValue = RiskParameters.DefaultBotPositionLabel, Group = "Risk")]
+    public string BotPositionLabel { get; set; } = RiskParameters.DefaultBotPositionLabel;
 
     [Parameter("Enable Visualization", DefaultValue = true, Group = "Visualization")]
     public bool EnableVisualization { get; set; }
@@ -41,11 +66,17 @@ public partial class XauBreakoutBot : Robot
     private Bars _m15 = null!;
     private SupportResistanceEngine _engine = null!;
     private T3BreakoutSignalDetector _t3Signals = null!;
+    private readonly List<RiskPlan> _riskPlans = new();
+    private ISymbolRiskApi? _symbolRiskApi;
+    private RiskParameters _riskParameters = null!;
     private LevelChartVisualizer? _visualizer;
     private int _lastProcessedClosedIndex = -1;
     private int _visualRefreshCounter;
     private long[]? _lastTradingViewIds;
     private long[]? _lastEntryCandidateIds;
+
+    /// <summary>Planes de riesgo acumulados (live + replay). Solo lectura para diagnóstico.</summary>
+    public IReadOnlyList<RiskPlan> RiskPlans => _riskPlans;
 
     protected override void OnStart()
     {
@@ -54,6 +85,18 @@ public partial class XauBreakoutBot : Robot
             lookbackBars: SupportResistanceEngine.DefaultLookbackBars,
             atrPeriod: SupportResistanceEngine.DefaultAtrPeriod);
         _t3Signals = new T3BreakoutSignalDetector();
+        _riskPlans.Clear();
+        _riskParameters = new RiskParameters
+        {
+            RiskPercent = RiskPercent,
+            StopBufferAtr = StopBufferAtr,
+            RewardRiskRatio = RewardRiskRatio,
+            MaxOpenPositions = MaxOpenPositions,
+            BotPositionLabel = string.IsNullOrWhiteSpace(BotPositionLabel)
+                ? RiskParameters.DefaultBotPositionLabel
+                : BotPositionLabel
+        };
+        _symbolRiskApi = new CTraderSymbolRiskApi(Symbol);
 
         _m15 = MarketData.GetBars(TimeFrame.Minute15);
         _m15.BarOpened += OnM15BarOpened;
@@ -73,8 +116,8 @@ public partial class XauBreakoutBot : Robot
         ReplayHistory();
 
         Print(
-            "XauBreakoutBot {0} iniciado. Detección S/R M15 activa. Sin trading. T3Signals={1}, VizMode={2}, Symbol={3}, ChartTF={4}, M15Bars={5}",
-            ModuleVersion, EnableT3BreakoutSignals, VisualizationMode, SymbolName, TimeFrame, _m15.Count);
+            "XauBreakoutBot {0} iniciado. Detección S/R M15 + RiskPlan MVP. Sin trading. T3Signals={1}, RiskPlans={2}, VizMode={3}, Symbol={4}, ChartTF={5}, M15Bars={6}",
+            ModuleVersion, EnableT3BreakoutSignals, EnableRiskPlans, VisualizationMode, SymbolName, TimeFrame, _m15.Count);
 
         var warn = _engine.ConsumeHistoryWarningOnce();
         if (!string.IsNullOrEmpty(warn))
@@ -105,8 +148,8 @@ public partial class XauBreakoutBot : Robot
         _lastTradingViewIds = null;
         _lastEntryCandidateIds = null;
         Print(
-            "XauBreakoutBot detenido. Niveles Active={0}, Total={1}. Señales T3Breakout={2}. Sin operaciones ejecutadas por este módulo.",
-            CountActive(), _engine.Levels.Count, _t3Signals.Signals.Count);
+            "XauBreakoutBot detenido. Niveles Active={0}, Total={1}. Señales T3Breakout={2}. RiskPlans={3}. Sin operaciones ejecutadas por este módulo.",
+            CountActive(), _engine.Levels.Count, _t3Signals.Signals.Count, _riskPlans.Count);
     }
 
     private void OnM15BarOpened(BarOpenedEventArgs args)
@@ -136,12 +179,14 @@ public partial class XauBreakoutBot : Robot
         // Barra a barra para capturar señales T3 con snapshots de invalidación.
         _engine.Reset();
         _t3Signals.Reset();
+        _riskPlans.Clear();
 
         var preferred = _engine.MinimumPreferredBars;
         var count = lastClosed + 1;
         var start = count > preferred ? count - preferred : 0;
 
         var replaySignalCount = 0;
+        var replayPlanCount = 0;
         for (var src = start; src <= lastClosed; src++)
         {
             var bar = new OhlcBar(
@@ -156,10 +201,19 @@ public partial class XauBreakoutBot : Robot
             {
                 var newly = _t3Signals.ProcessAfterClosedBar(_engine, bar);
                 replaySignalCount += newly.Count;
-                if (LogReplayT3Signals)
+                foreach (var s in newly)
                 {
-                    foreach (var s in newly)
+                    if (LogReplayT3Signals)
                         LogT3Signal(s, fromReplay: true);
+
+                    if (EnableRiskPlans)
+                    {
+                        var plan = BuildRiskPlanForSignal(s);
+                        _riskPlans.Add(plan);
+                        replayPlanCount++;
+                        if (LogReplayRiskPlans && LogRiskPlans)
+                            LogRiskPlan(plan, fromReplay: true);
+                    }
                 }
             }
         }
@@ -167,7 +221,7 @@ public partial class XauBreakoutBot : Robot
         _lastProcessedClosedIndex = lastClosed;
 
         Print(
-            "Replay M15: cerradas={0}, ventana={1}, swings={2}, niveles={3}, Active={4}, ATR_ready={5}, ATR_current={6:0.####}, T3Signals={7}",
+            "Replay M15: cerradas={0}, ventana={1}, swings={2}, niveles={3}, Active={4}, ATR_ready={5}, ATR_current={6:0.####}, T3Signals={7}, RiskPlans={8}",
             count,
             lastClosed - start + 1,
             _engine.Swings.Count,
@@ -175,10 +229,14 @@ public partial class XauBreakoutBot : Robot
             CountActive(),
             _engine.AtrReady,
             _engine.AtrReady ? _engine.AtrCurrent : 0,
-            replaySignalCount);
+            replaySignalCount,
+            replayPlanCount);
 
         Print(
             "Limitación: el replay OHLC usa proxy de invalidación por Close; no reconstruye invalidaciones tick intradía.");
+        Print(
+            "Limitación Risk: EntryReference={0}; riesgo real no garantizado; slippage/gaps no cuantificados.",
+            RiskPlan.EntryReferenceKind);
     }
 
     private void ProcessM15ClosedIndex(int index)
@@ -196,13 +254,49 @@ public partial class XauBreakoutBot : Robot
         {
             var newly = _t3Signals.ProcessAfterClosedBar(_engine, bar);
             foreach (var s in newly)
+            {
                 LogT3Signal(s, fromReplay: false);
+                if (EnableRiskPlans)
+                {
+                    var plan = BuildRiskPlanForSignal(s);
+                    _riskPlans.Add(plan);
+                    if (LogRiskPlans)
+                        LogRiskPlan(plan, fromReplay: false);
+                }
+            }
         }
 
         _lastProcessedClosedIndex = index;
 
         // Tras cierre, actualizar candidatos con último Bid/Ask conocido.
         _engine.ProcessTick(Server.Time, Symbol.Bid, Symbol.Ask);
+    }
+
+    /// <summary>
+    /// Construye y valida el plan de riesgo. Esta fase no envía ni coloca órdenes.
+    /// </summary>
+    private RiskPlan BuildRiskPlanForSignal(T3BreakoutSignal signal)
+    {
+        var eligibility = EvaluateBotPositionEligibility();
+        return RiskPlanCalculator.Build(
+            signal,
+            _riskParameters,
+            Account.Equity,
+            _symbolRiskApi,
+            eligibility);
+    }
+
+    private BotPositionGate.EligibilityResult EvaluateBotPositionEligibility()
+    {
+        var open = new List<BotPositionGate.OpenPositionRef>();
+        foreach (var p in Positions)
+            open.Add(new BotPositionGate.OpenPositionRef(p.Label, p.SymbolName));
+
+        return BotPositionGate.Evaluate(
+            open,
+            _riskParameters.BotPositionLabel,
+            SymbolName,
+            _riskParameters.MaxOpenPositions);
     }
 
     private void LogT3Signal(T3BreakoutSignal s, bool fromReplay)
@@ -222,6 +316,29 @@ public partial class XauBreakoutBot : Robot
             s.LowerBoundAtBreakout,
             s.AtrAtBreakout,
             s.BreakoutReason);
+    }
+
+    private void LogRiskPlan(RiskPlan plan, bool fromReplay)
+    {
+        Print(
+            "RiskPlan{0}: Id={1} {2} Valid={3} Reason={4} EntryRef({5})={6:0.####} SL={7:0.####} TP={8:0.####} StopPips={9:0.####} RR={10:0.##} Equity={11:0.##} Budget={12:0.####} VolUnits={13} PriceRisk={14} TotalRisk={15} CostsPartial={16}",
+            fromReplay ? " [replay]" : "",
+            plan.SignalId,
+            plan.Direction,
+            plan.IsValid,
+            plan.RejectionReason ?? "",
+            plan.EntryPriceKind,
+            plan.EntryReferencePrice,
+            plan.StopLossPrice,
+            plan.TakeProfitPrice,
+            plan.StopDistancePips,
+            plan.RewardRiskRatio,
+            plan.Equity,
+            plan.RiskBudget,
+            plan.VolumeInUnits?.ToString("0.####") ?? "n/a",
+            plan.EstimatedPriceRisk?.ToString("0.####") ?? "n/a",
+            plan.EstimatedTotalRisk?.ToString("0.####") ?? "n/a",
+            plan.CostsNotFullyModeled);
     }
 
     private bool TradingViewSelectionChanged()

@@ -22,6 +22,10 @@
 *.temp
 *.log
 
+# Artefactos voluminosos del harness A/B (se regeneran)
+artifacts/swing-ab/events_*.csv
+
+
 # IDE / SO
 .vs/
 .vscode/
@@ -34,3 +38,4 @@ Thumbs.db
 # Cachés de agentes
 .cursor/
 .claude/
+artifacts/swing-ab-structural-breakout/snapshots_*.csv

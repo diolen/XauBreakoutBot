@@ -26,5 +26,7 @@
     <Compile Include="..\XauBreakoutBot\SupportResistance\TradingViewTouchMarkers.cs" Link="SupportResistance\TradingViewTouchMarkers.cs" />
     <Compile Include="..\XauBreakoutBot\SupportResistance\EntryCandidateSelector.cs" Link="SupportResistance\EntryCandidateSelector.cs" />
     <Compile Include="..\XauBreakoutBot\SupportResistance\ChartVisibleLabelAnchor.cs" Link="SupportResistance\ChartVisibleLabelAnchor.cs" />
+    <Compile Include="..\XauBreakoutBot\SupportResistance\T3BreakoutSignal.cs" Link="SupportResistance\T3BreakoutSignal.cs" />
+    <Compile Include="..\XauBreakoutBot\SupportResistance\T3BreakoutSignalDetector.cs" Link="SupportResistance\T3BreakoutSignalDetector.cs" />
   </ItemGroup>
 </Project>

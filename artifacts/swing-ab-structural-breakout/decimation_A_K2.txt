@@ -1,0 +1,1 @@
+raw=1829 decimated=825 minGap=16

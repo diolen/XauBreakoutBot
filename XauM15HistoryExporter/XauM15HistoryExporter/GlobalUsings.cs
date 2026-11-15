@@ -1,0 +1,10 @@
+global using System;
+global using System.Collections.Generic;
+global using System.Globalization;
+global using System.IO;
+global using System.Linq;
+global using System.Security.Cryptography;
+global using System.Text;
+global using cAlgo.API;
+global using cAlgo.API.Internals;
+global using cAlgo.Robots.HistoryExport;

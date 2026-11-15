@@ -1,0 +1,1 @@
+Variant=B_K3 raw=1530 decimated=754 minGap=16

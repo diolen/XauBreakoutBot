@@ -30,6 +30,7 @@ public sealed class SupportResistanceEngine
     private readonly List<OhlcBar> _bars = new();
     private readonly List<SrLevel> _levels = new();
     private readonly HashSet<string> _diagonalKeys = new();
+    private readonly List<StructuralInvalidationSnapshot> _lastBarInvalidations = new();
     private long _nextLevelId = 1;
 
     private CandidateSnapshot _candidates = new();
@@ -58,11 +59,18 @@ public sealed class SupportResistanceEngine
     public int ClosedBarCount => _bars.Count;
     public string? HistoryWarning { get; private set; }
 
+    /// <summary>
+    /// Invalidaciones estructurales OHLC capturadas en el último <see cref="ProcessClosedBar"/>.
+    /// Snapshot geométrico previo al cambio de estado. Vacío tras ticks-only.
+    /// </summary>
+    public IReadOnlyList<StructuralInvalidationSnapshot> LastBarInvalidations => _lastBarInvalidations;
+
     public void Reset()
     {
         _bars.Clear();
         _levels.Clear();
         _diagonalKeys.Clear();
+        _lastBarInvalidations.Clear();
         _swings.Reset();
         _atr.Reset();
         _nextLevelId = 1;
@@ -132,6 +140,7 @@ public sealed class SupportResistanceEngine
 
         _bars.Add(bar);
         var closedIndex = bar.Index;
+        _lastBarInvalidations.Clear();
         _atr.Update(bar.High, bar.Low, bar.Close);
 
         var newSwings = _swings.ProcessClosedBar(_bars, closedIndex);
@@ -765,17 +774,76 @@ public sealed class SupportResistanceEngine
             // Proxy determinista por Close (no Bid/Ask). Limitación documentada.
             if (level.Role == LevelRole.Resistance && bar.Close > upper + buffer)
             {
-                Invalidate(level, bar.OpenTime, bar.Close, buffer, "ohlc-close-proxy-resistance", ohlcProxy: true);
+                Invalidate(
+                    level,
+                    bar.OpenTime,
+                    bar.Close,
+                    buffer,
+                    "ohlc-close-proxy-resistance",
+                    ohlcProxy: true,
+                    barIndex: closedIndex,
+                    atrCurrent: atr,
+                    recordSnapshot: true);
             }
             else if (level.Role == LevelRole.Support && bar.Close < lower - buffer)
             {
-                Invalidate(level, bar.OpenTime, bar.Close, buffer, "ohlc-close-proxy-support", ohlcProxy: true);
+                Invalidate(
+                    level,
+                    bar.OpenTime,
+                    bar.Close,
+                    buffer,
+                    "ohlc-close-proxy-support",
+                    ohlcProxy: true,
+                    barIndex: closedIndex,
+                    atrCurrent: atr,
+                    recordSnapshot: true);
             }
         }
     }
 
-    private static void Invalidate(SrLevel level, DateTime time, double price, double buffer, string tag, bool ohlcProxy)
+    private void Invalidate(
+        SrLevel level,
+        DateTime time,
+        double price,
+        double buffer,
+        string tag,
+        bool ohlcProxy,
+        int? barIndex = null,
+        double? atrCurrent = null,
+        bool recordSnapshot = false)
     {
+        var stateBefore = level.State;
+        var idx = barIndex ?? (_bars.Count > 0 ? _bars[^1].Index : 0);
+        var mid = level.Geometry == LevelGeometry.Horizontal
+            ? level.Center
+            : level.ProjectPriceAtBar(idx);
+        var upper = level.UpperBoundAtBar(idx);
+        var lower = level.LowerBoundAtBar(idx);
+        var atr = atrCurrent ?? _atr.Current;
+
+        if (recordSnapshot && ohlcProxy)
+        {
+            _lastBarInvalidations.Add(new StructuralInvalidationSnapshot
+            {
+                LevelId = level.Id,
+                Role = level.Role,
+                Geometry = level.Geometry,
+                StateBefore = stateBefore,
+                BarIndex = idx,
+                Time = time,
+                Close = price,
+                Mid = mid,
+                UpperBound = upper,
+                LowerBound = lower,
+                HalfWidth = level.HalfWidth,
+                AtrCurrent = atr,
+                AtrRef = level.AtrRef,
+                ReasonTag = tag,
+                WasOhlcProxy = ohlcProxy,
+                IndependentTouchCount = level.IndependentTouchCount
+            });
+        }
+
         level.State = LevelState.Invalidated;
         level.Invalidation = new InvalidationInfo
         {

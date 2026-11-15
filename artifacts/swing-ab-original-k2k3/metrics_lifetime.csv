@@ -1,0 +1,9 @@
+VariantId,SwingK,Segment,LevelsWithLifetime,MeanLifetimeBars,MedianLifetimeBars
+A_K2,2,develop,2270,304.46,17.00
+A_K2,2,validate,765,225.43,19.00
+A_K2,2,oos,687,64.49,14.00
+A_K2,2,global,3722,243.92,17.00
+B_K3,3,develop,1793,331.72,21.00
+B_K3,3,validate,608,225.57,24.00
+B_K3,3,oos,555,72.80,19.00
+B_K3,3,global,2956,261.27,21.00

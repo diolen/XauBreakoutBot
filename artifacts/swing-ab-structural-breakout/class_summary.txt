@@ -1,0 +1,14 @@
+=== A_K2 T3=1829 snapshots=8144 ===
+  OnlyC=48
+  AAndCSameBar=671
+  AAndCDifferentBars=88
+  OnlyA=0
+  Neither=1022
+
+=== B_K3 T3=1530 snapshots=6605 ===
+  OnlyC=40
+  AAndCSameBar=581
+  AAndCDifferentBars=58
+  OnlyA=0
+  Neither=851
+

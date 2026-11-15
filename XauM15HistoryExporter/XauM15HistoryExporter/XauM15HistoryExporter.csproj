@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>cAlgo.Robots</RootNamespace>
+    <!-- En Linux/CI evitar copia a Documents/cAlgo (requiere cTrader Desktop). -->
+    <AlgoPublish>false</AlgoPublish>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Misma resolución que el bot productivo (cache local: 1.0.21 / 1.0.1). -->
+    <PackageReference Include="cTrader.Automate" Version="*" />
+    <PackageReference Include="cTrader.Automate.SourceGenerators" Version="*" />
+  </ItemGroup>
+</Project>

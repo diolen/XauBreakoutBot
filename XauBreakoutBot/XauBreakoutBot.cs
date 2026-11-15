@@ -9,7 +9,13 @@ namespace cAlgo.Robots;
 [Robot(TimeZone = TimeZones.UTC, AccessRights = AccessRights.None)]
 public partial class XauBreakoutBot : Robot
 {
-    private const string ModuleVersion = "1.4-label-viewport";
+    private const string ModuleVersion = "1.5-t3-breakout-signal";
+
+    [Parameter("Enable T3 Breakout Signals", DefaultValue = true, Group = "Signals")]
+    public bool EnableT3BreakoutSignals { get; set; }
+
+    [Parameter("Log Replay T3 Signals", DefaultValue = false, Group = "Signals")]
+    public bool LogReplayT3Signals { get; set; }
 
     [Parameter("Enable Visualization", DefaultValue = true, Group = "Visualization")]
     public bool EnableVisualization { get; set; }
@@ -34,6 +40,7 @@ public partial class XauBreakoutBot : Robot
 
     private Bars _m15 = null!;
     private SupportResistanceEngine _engine = null!;
+    private T3BreakoutSignalDetector _t3Signals = null!;
     private LevelChartVisualizer? _visualizer;
     private int _lastProcessedClosedIndex = -1;
     private int _visualRefreshCounter;
@@ -46,6 +53,7 @@ public partial class XauBreakoutBot : Robot
             swingStrength: SupportResistanceEngine.DefaultSwingStrength,
             lookbackBars: SupportResistanceEngine.DefaultLookbackBars,
             atrPeriod: SupportResistanceEngine.DefaultAtrPeriod);
+        _t3Signals = new T3BreakoutSignalDetector();
 
         _m15 = MarketData.GetBars(TimeFrame.Minute15);
         _m15.BarOpened += OnM15BarOpened;
@@ -65,8 +73,8 @@ public partial class XauBreakoutBot : Robot
         ReplayHistory();
 
         Print(
-            "XauBreakoutBot {0} iniciado. Detección S/R M15 activa. Sin trading. VizMode={1}, Symbol={2}, ChartTF={3}, M15Bars={4}",
-            ModuleVersion, VisualizationMode, SymbolName, TimeFrame, _m15.Count);
+            "XauBreakoutBot {0} iniciado. Detección S/R M15 activa. Sin trading. T3Signals={1}, VizMode={2}, Symbol={3}, ChartTF={4}, M15Bars={5}",
+            ModuleVersion, EnableT3BreakoutSignals, VisualizationMode, SymbolName, TimeFrame, _m15.Count);
 
         var warn = _engine.ConsumeHistoryWarningOnce();
         if (!string.IsNullOrEmpty(warn))
@@ -96,8 +104,9 @@ public partial class XauBreakoutBot : Robot
         _visualizer?.Clear();
         _lastTradingViewIds = null;
         _lastEntryCandidateIds = null;
-        Print("XauBreakoutBot detenido. Niveles Active={0}, Total={1}. Sin operaciones ejecutadas por este módulo.",
-            CountActive(), _engine.Levels.Count);
+        Print(
+            "XauBreakoutBot detenido. Niveles Active={0}, Total={1}. Señales T3Breakout={2}. Sin operaciones ejecutadas por este módulo.",
+            CountActive(), _engine.Levels.Count, _t3Signals.Signals.Count);
     }
 
     private void OnM15BarOpened(BarOpenedEventArgs args)
@@ -123,29 +132,50 @@ public partial class XauBreakoutBot : Robot
             return;
         }
 
-        var allClosed = new List<OhlcBar>(lastClosed + 1);
-        for (var i = 0; i <= lastClosed; i++)
+        // Misma ventana que ReplayClosedBars(enforceLookbackWindow:true): últimas MinimumPreferredBars.
+        // Barra a barra para capturar señales T3 con snapshots de invalidación.
+        _engine.Reset();
+        _t3Signals.Reset();
+
+        var preferred = _engine.MinimumPreferredBars;
+        var count = lastClosed + 1;
+        var start = count > preferred ? count - preferred : 0;
+
+        var replaySignalCount = 0;
+        for (var src = start; src <= lastClosed; src++)
         {
-            allClosed.Add(new OhlcBar(
-                i,
-                _m15.OpenTimes[i],
-                _m15.OpenPrices[i],
-                _m15.HighPrices[i],
-                _m15.LowPrices[i],
-                _m15.ClosePrices[i]));
+            var bar = new OhlcBar(
+                src - start,
+                _m15.OpenTimes[src],
+                _m15.OpenPrices[src],
+                _m15.HighPrices[src],
+                _m15.LowPrices[src],
+                _m15.ClosePrices[src]);
+            _engine.ProcessClosedBar(bar);
+            if (EnableT3BreakoutSignals)
+            {
+                var newly = _t3Signals.ProcessAfterClosedBar(_engine, bar);
+                replaySignalCount += newly.Count;
+                if (LogReplayT3Signals)
+                {
+                    foreach (var s in newly)
+                        LogT3Signal(s, fromReplay: true);
+                }
+            }
         }
 
-        _engine.ReplayClosedBars(allClosed, enforceLookbackWindow: true);
         _lastProcessedClosedIndex = lastClosed;
 
         Print(
-            "Replay M15: cerradas={0}, swings={1}, niveles={2}, Active={3}, ATR_ready={4}, ATR_current={5:0.####}",
-            allClosed.Count,
+            "Replay M15: cerradas={0}, ventana={1}, swings={2}, niveles={3}, Active={4}, ATR_ready={5}, ATR_current={6:0.####}, T3Signals={7}",
+            count,
+            lastClosed - start + 1,
             _engine.Swings.Count,
             _engine.Levels.Count,
             CountActive(),
             _engine.AtrReady,
-            _engine.AtrReady ? _engine.AtrCurrent : 0);
+            _engine.AtrReady ? _engine.AtrCurrent : 0,
+            replaySignalCount);
 
         Print(
             "Limitación: el replay OHLC usa proxy de invalidación por Close; no reconstruye invalidaciones tick intradía.");
@@ -162,10 +192,36 @@ public partial class XauBreakoutBot : Robot
             _m15.ClosePrices[index]);
 
         _engine.ProcessClosedBar(bar);
+        if (EnableT3BreakoutSignals)
+        {
+            var newly = _t3Signals.ProcessAfterClosedBar(_engine, bar);
+            foreach (var s in newly)
+                LogT3Signal(s, fromReplay: false);
+        }
+
         _lastProcessedClosedIndex = index;
 
         // Tras cierre, actualizar candidatos con último Bid/Ask conocido.
         _engine.ProcessTick(Server.Time, Symbol.Bid, Symbol.Ask);
+    }
+
+    private void LogT3Signal(T3BreakoutSignal s, bool fromReplay)
+    {
+        Print(
+            "T3BreakoutSignal{0}: {1} LevelId={2} Role={3} Geom={4} T3Bar={5} BreakBar={6} Close={7:0.####} Mid={8:0.####} Upper={9:0.####} Lower={10:0.####} ATR={11:0.####} Reason={12}",
+            fromReplay ? " [replay]" : "",
+            s.Direction,
+            s.LevelId,
+            s.LevelRole,
+            s.Geometry,
+            s.T3BarIndex,
+            s.BreakoutBarIndex,
+            s.ConfirmationClose,
+            s.LevelMidAtBreakout,
+            s.UpperBoundAtBreakout,
+            s.LowerBoundAtBreakout,
+            s.AtrAtBreakout,
+            s.BreakoutReason);
     }
 
     private bool TradingViewSelectionChanged()

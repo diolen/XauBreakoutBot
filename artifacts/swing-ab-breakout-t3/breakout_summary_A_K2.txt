@@ -1,0 +1,12 @@
+Variant=A_K2
+T3=1829
+Confirmed=437
+NotConfirmedInWindow=720
+InvalidatedBeforeConfirm=672
+ExcludedNoGeometry=0
+IncompleteHorizon=0
+ConfirmRate=0.2389
+MeanBarsToConfirm=1.84
+develop: T3=1090 Confirmed=255 Rate=0.2339
+validate: T3=371 Confirmed=83 Rate=0.2237
+oos: T3=368 Confirmed=99 Rate=0.2690

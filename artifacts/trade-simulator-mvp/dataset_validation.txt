@@ -1,0 +1,23 @@
+Path: /home/emsetec/cAlgo/Data/cBots/XauM15HistoryExporter/xauusd_m15_2025-11_2026-11.csv
+SHA-256: 023c31d2e0b45a85ad1411350d28539e32c36a60cc96f05d0c8945cbe2bce95d
+Bars: 23615
+First: 2025-11-14T00:00:00.0000000Z
+Last: 2026-11-13T21:30:00.0000000Z
+Duplicates: 0
+OHLC errors: 0
+Order errors: 0
+Non-finite: 0
+Temporal gaps: 258
+  gap.IntradayOrSessionUnknown: 5
+  gap.MultiDayUnknown: 3
+  gap.NearM15Irregular: 1
+  gap.ShortGapUnknown: 133
+  gap.WeekdayDailyBreak: 65
+  gap.WeekendClose: 51
+  duration.<=30m: 1
+  duration.30m-2h: 198
+  duration.2h-6h: 5
+  duration.6h-24h: 0
+  duration.1-2d: 2
+  duration.>2d: 52
+StructurallyValid: True

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>XauTradeSimulator</RootNamespace>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <!-- Motor productivo de solo lectura + dataset del harness (sin modificar producción). -->
+  <ItemGroup>
+    <Compile Include="..\XauBreakoutBot\SupportResistance\SrModels.cs" Link="SupportResistance\SrModels.cs" />
+    <Compile Include="..\XauBreakoutBot\SupportResistance\AtrCalculator.cs" Link="SupportResistance\AtrCalculator.cs" />
+    <Compile Include="..\XauBreakoutBot\SupportResistance\SwingDetector.cs" Link="SupportResistance\SwingDetector.cs" />
+    <Compile Include="..\XauBreakoutBot\SupportResistance\SupportResistanceEngine.cs" Link="SupportResistance\SupportResistanceEngine.cs" />
+    <Compile Include="..\XauBreakoutBot\SupportResistance\T3BreakoutSignal.cs" Link="SupportResistance\T3BreakoutSignal.cs" />
+    <Compile Include="..\XauBreakoutBot\SupportResistance\T3BreakoutSignalDetector.cs" Link="SupportResistance\T3BreakoutSignalDetector.cs" />
+    <Compile Include="..\XauBreakoutBot\Risk\RiskParameters.cs" Link="Risk\RiskParameters.cs" />
+    <Compile Include="..\XauBreakoutBot\Risk\RiskRejectionReasons.cs" Link="Risk\RiskRejectionReasons.cs" />
+    <Compile Include="..\XauBreakoutBot\Risk\RiskPlan.cs" Link="Risk\RiskPlan.cs" />
+    <Compile Include="..\XauBreakoutBot\Risk\ISymbolRiskApi.cs" Link="Risk\ISymbolRiskApi.cs" />
+    <Compile Include="..\XauBreakoutBot\Risk\PipValueSymbolRiskApi.cs" Link="Risk\PipValueSymbolRiskApi.cs" />
+    <Compile Include="..\XauBreakoutBot\Risk\BotPositionGate.cs" Link="Risk\BotPositionGate.cs" />
+    <Compile Include="..\XauBreakoutBot\Risk\RiskPlanCalculator.cs" Link="Risk\RiskPlanCalculator.cs" />
+    <Compile Include="..\XauSwingAbHarness\Dataset\CsvHistoryLoader.cs" Link="Dataset\CsvHistoryLoader.cs" />
+    <Compile Include="..\XauSwingAbHarness\Dataset\DatasetValidator.cs" Link="Dataset\DatasetValidator.cs" />
+    <Compile Include="..\XauSwingAbHarness\Dataset\GapClassifier.cs" Link="Dataset\GapClassifier.cs" />
+  </ItemGroup>
+</Project>

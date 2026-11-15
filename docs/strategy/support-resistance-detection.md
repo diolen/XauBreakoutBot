@@ -586,6 +586,7 @@ Capa visual independiente (§12.2), aplicable sobre Trading View o Full Debug:
 | Etiquetas visibles M15/H1 | **Corregido** — anclaje a barras visibles del Chart; cálculo sigue en M15 |
 | Señales T3 breakout | **Implementadas** (v1.5; sin órdenes) |
 | RiskPlan SL/TP/volumen | **Implementado MVP** (v1.6; sin órdenes) — ver `risk-management-mvp.md` |
+| ExecutionPlan DEMO prep | **Implementado MVP** (v1.7; sin órdenes) — ver `execution-prep-mvp.md` |
 | Ejecución de órdenes | **No autorizada / no implementada** |
 | Commit / push | No realizados por la tarea de implementación |
 
@@ -606,6 +607,8 @@ Capa visual independiente (§12.2), aplicable sobre Trading View o Full Debug:
 | cBot host | `XauBreakoutBot/XauBreakoutBot.cs` |
 | Risk MVP | `XauBreakoutBot/Risk/*` |
 | Doc Risk MVP | `docs/strategy/risk-management-mvp.md` |
+| Execution prep MVP | `XauBreakoutBot/Execution/*` |
+| Doc Execution prep | `docs/strategy/execution-prep-mvp.md` |
 | Pruebas unitarias | `XauBreakoutBot.Tests/SupportResistanceEngineTests.cs` |
 | Pruebas Risk | `XauBreakoutBot.Tests/RiskPlanCalculatorTests.cs` |
 | Pruebas selector visual | `XauBreakoutBot.Tests/TradingViewLevelSelectorTests.cs` |

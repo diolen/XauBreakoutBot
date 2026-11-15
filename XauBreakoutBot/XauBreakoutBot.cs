@@ -1,16 +1,17 @@
+using cAlgo.Robots.Execution;
 using cAlgo.Robots.Risk;
 using cAlgo.Robots.SupportResistance;
 
 namespace cAlgo.Robots;
 
 /// <summary>
-/// cBot XAUUSD — detección S/R M15 + señales T3 + plan de riesgo MVP.
-/// Calcula SL/TP/volumen; no ejecuta órdenes.
+/// cBot XAUUSD — S/R M15 + T3 + RiskPlan + ExecutionPlan DEMO prep.
+/// Calcula SL/TP/volumen y planes de ejecución; no envía órdenes.
 /// </summary>
 [Robot(TimeZone = TimeZones.UTC, AccessRights = AccessRights.None)]
 public partial class XauBreakoutBot : Robot
 {
-    private const string ModuleVersion = "1.6-risk-mvp";
+    private const string ModuleVersion = "1.7-execution-prep";
 
     [Parameter("Enable T3 Breakout Signals", DefaultValue = true, Group = "Signals")]
     public bool EnableT3BreakoutSignals { get; set; }
@@ -42,6 +43,25 @@ public partial class XauBreakoutBot : Robot
     [Parameter("Bot Position Label", DefaultValue = RiskParameters.DefaultBotPositionLabel, Group = "Risk")]
     public string BotPositionLabel { get; set; } = RiskParameters.DefaultBotPositionLabel;
 
+    [Parameter("Enable Execution Plans", DefaultValue = true, Group = "Execution")]
+    public bool EnableExecutionPlans { get; set; }
+
+    [Parameter("Log Execution Plans", DefaultValue = true, Group = "Execution")]
+    public bool LogExecutionPlans { get; set; }
+
+    [Parameter("Log Symbol Specs", DefaultValue = true, Group = "Execution")]
+    public bool LogSymbolSpecs { get; set; }
+
+    [Parameter("Max Spread Pips", DefaultValue = ExecutionParameters.DefaultMaxSpreadPips, Group = "Execution")]
+    public double MaxSpreadPips { get; set; }
+
+    [Parameter("Max Signal Age Bars", DefaultValue = ExecutionParameters.DefaultMaxSignalAgeBars, Group = "Execution")]
+    public int MaxSignalAgeBars { get; set; }
+
+    /// <summary>Hard-off v1.7: el envío de órdenes permanece deshabilitado aunque el parámetro exista.</summary>
+    [Parameter("Orders Enabled", DefaultValue = ExecutionParameters.DefaultOrdersEnabled, Group = "Execution")]
+    public bool OrdersEnabled { get; set; }
+
     [Parameter("Enable Visualization", DefaultValue = true, Group = "Visualization")]
     public bool EnableVisualization { get; set; }
 
@@ -67,8 +87,11 @@ public partial class XauBreakoutBot : Robot
     private SupportResistanceEngine _engine = null!;
     private T3BreakoutSignalDetector _t3Signals = null!;
     private readonly List<RiskPlan> _riskPlans = new();
+    private readonly List<ExecutionPlan> _executionPlans = new();
+    private readonly HashSet<string> _plannedExecutionSignalIds = new();
     private ISymbolRiskApi? _symbolRiskApi;
     private RiskParameters _riskParameters = null!;
+    private ExecutionParameters _executionParameters = null!;
     private LevelChartVisualizer? _visualizer;
     private int _lastProcessedClosedIndex = -1;
     private int _visualRefreshCounter;
@@ -78,6 +101,9 @@ public partial class XauBreakoutBot : Robot
     /// <summary>Planes de riesgo acumulados (live + replay). Solo lectura para diagnóstico.</summary>
     public IReadOnlyList<RiskPlan> RiskPlans => _riskPlans;
 
+    /// <summary>Planes de ejecución DEMO prep (solo señales live post-replay).</summary>
+    public IReadOnlyList<ExecutionPlan> ExecutionPlans => _executionPlans;
+
     protected override void OnStart()
     {
         _engine = new SupportResistanceEngine(
@@ -86,6 +112,8 @@ public partial class XauBreakoutBot : Robot
             atrPeriod: SupportResistanceEngine.DefaultAtrPeriod);
         _t3Signals = new T3BreakoutSignalDetector();
         _riskPlans.Clear();
+        _executionPlans.Clear();
+        _plannedExecutionSignalIds.Clear();
         _riskParameters = new RiskParameters
         {
             RiskPercent = RiskPercent,
@@ -95,6 +123,13 @@ public partial class XauBreakoutBot : Robot
             BotPositionLabel = string.IsNullOrWhiteSpace(BotPositionLabel)
                 ? RiskParameters.DefaultBotPositionLabel
                 : BotPositionLabel
+        };
+        // v1.7: forzar OrdersEnabled=false aunque el parámetro de UI diga lo contrario.
+        _executionParameters = new ExecutionParameters
+        {
+            MaxSpreadPips = MaxSpreadPips,
+            MaxSignalAgeBars = MaxSignalAgeBars,
+            OrdersEnabled = false
         };
         _symbolRiskApi = new CTraderSymbolRiskApi(Symbol);
 
@@ -113,11 +148,28 @@ public partial class XauBreakoutBot : Robot
                 showEntryCandidates: ShowEntryCandidates);
         }
 
+        if (LogSymbolSpecs)
+            LogSafeSymbolSpecs();
+
         ReplayHistory();
 
         Print(
-            "XauBreakoutBot {0} iniciado. Detección S/R M15 + RiskPlan MVP. Sin trading. T3Signals={1}, RiskPlans={2}, VizMode={3}, Symbol={4}, ChartTF={5}, M15Bars={6}",
-            ModuleVersion, EnableT3BreakoutSignals, EnableRiskPlans, VisualizationMode, SymbolName, TimeFrame, _m15.Count);
+            "XauBreakoutBot {0} iniciado. S/R + Risk + ExecutionPrep. Sin trading. T3={1} Risk={2} ExecPlans={3} AccountIsLive={4} VizMode={5} Symbol={6} ChartTF={7} M15Bars={8}",
+            ModuleVersion,
+            EnableT3BreakoutSignals,
+            EnableRiskPlans,
+            EnableExecutionPlans,
+            Account.IsLive,
+            VisualizationMode,
+            SymbolName,
+            TimeFrame,
+            _m15.Count);
+
+        if (Account.IsLive)
+            Print("ADVERTENCIA: cuenta LIVE detectada. ExecutionPlan rechazará todos los planes (solo DEMO).");
+
+        if (OrdersEnabled)
+            Print("ADVERTENCIA: Orders Enabled=true en UI, pero v1.7 fuerza OrdersEnabled=false (sin envío de órdenes).");
 
         var warn = _engine.ConsumeHistoryWarningOnce();
         if (!string.IsNullOrEmpty(warn))
@@ -148,8 +200,8 @@ public partial class XauBreakoutBot : Robot
         _lastTradingViewIds = null;
         _lastEntryCandidateIds = null;
         Print(
-            "XauBreakoutBot detenido. Niveles Active={0}, Total={1}. Señales T3Breakout={2}. RiskPlans={3}. Sin operaciones ejecutadas por este módulo.",
-            CountActive(), _engine.Levels.Count, _t3Signals.Signals.Count, _riskPlans.Count);
+            "XauBreakoutBot detenido. Niveles Active={0}, Total={1}. Señales T3Breakout={2}. RiskPlans={3}. ExecutionPlans={4}. Sin operaciones ejecutadas por este módulo.",
+            CountActive(), _engine.Levels.Count, _t3Signals.Signals.Count, _riskPlans.Count, _executionPlans.Count);
     }
 
     private void OnM15BarOpened(BarOpenedEventArgs args)
@@ -180,6 +232,7 @@ public partial class XauBreakoutBot : Robot
         _engine.Reset();
         _t3Signals.Reset();
         _riskPlans.Clear();
+        // ExecutionPlan no se construye en replay: no hay cotización histórica Ask/Bid fiable.
 
         var preferred = _engine.MinimumPreferredBars;
         var count = lastClosed + 1;
@@ -237,6 +290,8 @@ public partial class XauBreakoutBot : Robot
         Print(
             "Limitación Risk: EntryReference={0}; riesgo real no garantizado; slippage/gaps no cuantificados.",
             RiskPlan.EntryReferenceKind);
+        Print(
+            "Limitación Execution: planes solo post-replay con Ask/Bid actuales; OrdersEnabled forzado a false; LIVE rechazado.");
     }
 
     private void ProcessM15ClosedIndex(int index)
@@ -263,6 +318,15 @@ public partial class XauBreakoutBot : Robot
                     if (LogRiskPlans)
                         LogRiskPlan(plan, fromReplay: false);
                 }
+
+                if (EnableExecutionPlans)
+                {
+                    var exec = BuildExecutionPlanForSignal(s);
+                    _executionPlans.Add(exec);
+                    _plannedExecutionSignalIds.Add(exec.SignalId);
+                    if (LogExecutionPlans)
+                        LogExecutionPlan(exec);
+                }
             }
         }
 
@@ -286,6 +350,28 @@ public partial class XauBreakoutBot : Robot
             eligibility);
     }
 
+    /// <summary>
+    /// Prepara ExecutionPlan con cotización Ask/Bid actual. No envía órdenes.
+    /// </summary>
+    private ExecutionPlan BuildExecutionPlanForSignal(T3BreakoutSignal signal)
+    {
+        var eligibility = EvaluateBotPositionEligibility();
+        var market = CTraderExecutionContextFactory.Create(
+            Symbol,
+            Account,
+            SymbolName,
+            currentClosedBarIndex: _engine.ClosedBarCount > 0 ? _engine.ClosedBarCount - 1 : 0);
+
+        return ExecutionPlanBuilder.Build(
+            signal,
+            _riskParameters,
+            _executionParameters,
+            market,
+            _symbolRiskApi,
+            eligibility,
+            _plannedExecutionSignalIds);
+    }
+
     private BotPositionGate.EligibilityResult EvaluateBotPositionEligibility()
     {
         var open = new List<BotPositionGate.OpenPositionRef>();
@@ -297,6 +383,15 @@ public partial class XauBreakoutBot : Robot
             _riskParameters.BotPositionLabel,
             SymbolName,
             _riskParameters.MaxOpenPositions);
+    }
+
+    private void LogSafeSymbolSpecs()
+    {
+        var snap = CTraderExecutionContextFactory.CaptureSpec(Symbol, Account, SymbolName);
+        Print(snap.FormatSafeLogLine());
+        Print(
+            "Risk API units: VolumeForFixedRisk/AmountRisked usan volumen en unidades (no lotes) y stop en pips (distancia/PipSize). PipValue={0}",
+            Symbol.PipValue);
     }
 
     private void LogT3Signal(T3BreakoutSignal s, bool fromReplay)
@@ -339,6 +434,27 @@ public partial class XauBreakoutBot : Robot
             plan.EstimatedPriceRisk?.ToString("0.####") ?? "n/a",
             plan.EstimatedTotalRisk?.ToString("0.####") ?? "n/a",
             plan.CostsNotFullyModeled);
+    }
+
+    private void LogExecutionPlan(ExecutionPlan plan)
+    {
+        Print(
+            "ExecutionPlan: Id={0} {1} Eligible={2} Reason={3} Entry({4})={5:0.####} SignalClose={6:0.####} SL={7:0.####} TP={8:0.####} StopPips={9:0.####} VolUnits={10} Risk={11} Budget={12:0.####} Spread={13:0.####} ({14:0.##} pips)",
+            plan.SignalId,
+            plan.Direction,
+            plan.IsEligible,
+            plan.RejectionReason ?? "",
+            plan.EntryKind,
+            plan.ExecutableEntryPrice,
+            plan.SignalConfirmationClose,
+            plan.StructuralStopLossPrice,
+            plan.TakeProfitPrice,
+            plan.StopDistancePips,
+            plan.VolumeInUnits?.ToString("0.####") ?? "n/a",
+            plan.EstimatedMonetaryRisk?.ToString("0.####") ?? "n/a",
+            plan.RiskBudget,
+            plan.ObservedSpread,
+            plan.ObservedSpreadPips);
     }
 
     private bool TradingViewSelectionChanged()

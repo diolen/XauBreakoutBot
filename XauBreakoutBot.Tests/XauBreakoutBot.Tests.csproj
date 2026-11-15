@@ -35,5 +35,12 @@
     <Compile Include="..\XauBreakoutBot\Risk\PipValueSymbolRiskApi.cs" Link="Risk\PipValueSymbolRiskApi.cs" />
     <Compile Include="..\XauBreakoutBot\Risk\BotPositionGate.cs" Link="Risk\BotPositionGate.cs" />
     <Compile Include="..\XauBreakoutBot\Risk\RiskPlanCalculator.cs" Link="Risk\RiskPlanCalculator.cs" />
+    <Compile Include="..\XauBreakoutBot\Execution\ExecutionRejectionReasons.cs" Link="Execution\ExecutionRejectionReasons.cs" />
+    <Compile Include="..\XauBreakoutBot\Execution\ExecutionParameters.cs" Link="Execution\ExecutionParameters.cs" />
+    <Compile Include="..\XauBreakoutBot\Execution\MinDistanceUnit.cs" Link="Execution\MinDistanceUnit.cs" />
+    <Compile Include="..\XauBreakoutBot\Execution\SymbolSpecSnapshot.cs" Link="Execution\SymbolSpecSnapshot.cs" />
+    <Compile Include="..\XauBreakoutBot\Execution\ExecutionMarketContext.cs" Link="Execution\ExecutionMarketContext.cs" />
+    <Compile Include="..\XauBreakoutBot\Execution\ExecutionPlan.cs" Link="Execution\ExecutionPlan.cs" />
+    <Compile Include="..\XauBreakoutBot\Execution\ExecutionPlanBuilder.cs" Link="Execution\ExecutionPlanBuilder.cs" />
   </ItemGroup>
 </Project>

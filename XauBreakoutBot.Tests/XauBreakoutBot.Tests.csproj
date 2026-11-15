@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>XauBreakoutBot.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\XauBreakoutBot\SupportResistance\SrModels.cs" Link="SupportResistance\SrModels.cs" />
+    <Compile Include="..\XauBreakoutBot\SupportResistance\AtrCalculator.cs" Link="SupportResistance\AtrCalculator.cs" />
+    <Compile Include="..\XauBreakoutBot\SupportResistance\SwingDetector.cs" Link="SupportResistance\SwingDetector.cs" />
+    <Compile Include="..\XauBreakoutBot\SupportResistance\SupportResistanceEngine.cs" Link="SupportResistance\SupportResistanceEngine.cs" />
+    <Compile Include="..\XauBreakoutBot\SupportResistance\VisualizationMode.cs" Link="SupportResistance\VisualizationMode.cs" />
+    <Compile Include="..\XauBreakoutBot\SupportResistance\TradingViewLevelSelector.cs" Link="SupportResistance\TradingViewLevelSelector.cs" />
+    <Compile Include="..\XauBreakoutBot\SupportResistance\TradingViewTouchMarkers.cs" Link="SupportResistance\TradingViewTouchMarkers.cs" />
+    <Compile Include="..\XauBreakoutBot\SupportResistance\EntryCandidateSelector.cs" Link="SupportResistance\EntryCandidateSelector.cs" />
+    <Compile Include="..\XauBreakoutBot\SupportResistance\ChartVisibleLabelAnchor.cs" Link="SupportResistance\ChartVisibleLabelAnchor.cs" />
+  </ItemGroup>
+</Project>

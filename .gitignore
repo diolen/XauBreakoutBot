@@ -1,0 +1,36 @@
+# Compilación .NET / cTrader Automate
+**/bin/
+**/obj/
+*.algo
+*.user
+*.suo
+
+# NuGet
+*.nupkg
+**/packages/
+
+# Credenciales y secretos
+.env
+.env.*
+*.pwd
+**/password
+**/credentials*
+**/secrets*
+
+# Temporales / logs
+*.tmp
+*.temp
+*.log
+
+# IDE / SO
+.vs/
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Cachés de agentes
+.cursor/
+.claude/
